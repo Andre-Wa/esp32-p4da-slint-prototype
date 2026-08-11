@@ -1,0 +1,67 @@
+// app_ui.slint
+//
+// Tela única de bring-up: mostra a última tecla recebida do teclado USB
+// e um botão pra provar que o touch (GT911) também está funcionando.
+// Isso NÃO é o PDA final — é só pra validar o toolchain (Slint + touch +
+// teclado USB) antes de começar a construir as telas de verdade.
+
+export component AppWindow inherits Window {
+    width: 800px;
+    height: 480px;
+    background: #14181f;
+
+    // Preenchido pelo lado C++ (main.cpp) a cada tecla recebida do
+    // teclado USB.
+    in property <string> last-key: "—";
+
+    property <int> touch-count: 0;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 24px;
+        padding: 24px;
+
+        Text {
+            text: "PDA — teste de bring-up";
+            font-size: 34px;
+            font-weight: 700;
+            color: white;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Última tecla (USB): " + root.last-key;
+            font-size: 24px;
+            color: #7fdbff;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Toques na tela: " + touch-count;
+            font-size: 24px;
+            color: #7fdbff;
+            horizontal-alignment: center;
+        }
+
+        Rectangle {
+            width: 220px;
+            height: 64px;
+            border-radius: 10px;
+            background: touch-area.pressed ? #005f8f : #0077b6;
+
+            Text {
+                text: "Toque aqui";
+                color: white;
+                font-size: 20px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            touch-area := TouchArea {
+                clicked => {
+                    touch-count += 1;
+                }
+            }
+        }
+    }
+}

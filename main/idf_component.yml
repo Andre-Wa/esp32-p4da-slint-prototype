@@ -1,0 +1,23 @@
+dependencies:
+  idf:
+    version: ">=5.3"
+
+  # Driver do painel ST7701S via MIPI-DSI.
+  # Este projeto roda em ESP-IDF v5.5.1 (mesma versão do BSP de
+  # referência), que resolve para a série 1.1.x deste componente.
+  # A série 2.x exige ESP-IDF 6.0+ e tem uma API ligeiramente diferente
+  # (não testada neste projeto).
+  espressif/esp_lcd_st7701:
+    version: "^1.1.5"
+
+  # Driver do touch GT911 (I2C).
+  espressif/esp_lcd_touch_gt911:
+    version: "^1.1.3"
+
+  # Driver USB Host HID (teclado).
+  espressif/usb_host_hid:
+    version: "^1.0.0"
+
+  # UI toolkit.
+  slint/slint:
+    version: "^1.12.1"
