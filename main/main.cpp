@@ -18,6 +18,7 @@
 #include "usb_hid_keyboard.h"
 
 #include "esp_log.h"
+#include <private/slint_size.h>
 #include <vector>
 #include <cstdio>
 #include <string>
@@ -41,11 +42,14 @@ extern "C" void app_main(void)
     static std::vector<slint::platform::Rgb565Pixel> framebuffer(
         BOARD_LCD_H_RES_NATIVE * BOARD_LCD_V_RES_NATIVE);
 
-    slint_esp_init(
-        slint::PhysicalSize({BOARD_LCD_H_RES_NATIVE, BOARD_LCD_V_RES_NATIVE}),
-        panel,
-        touch,
-        framebuffer);
+    slint_esp_init(SlintPlatformConfiguration<slint::platform::Rgb565Pixel>{
+        .size = slint::PhysicalSize({BOARD_LCD_V_RES_NATIVE, BOARD_LCD_H_RES_NATIVE}),
+        .panel_handle = panel,
+        .touch_handle = touch,
+        .buffer1 = framebuffer,
+        .rotation = slint::platform::SoftwareRenderer::RenderingRotation::Rotate90,
+        .byte_swap = false,
+    });
 
     auto ui = AppWindow::create();
 
