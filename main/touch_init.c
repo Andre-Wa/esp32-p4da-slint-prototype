@@ -47,8 +47,8 @@ esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
         .rst_gpio_num = GPIO_NUM_NC,
         .int_gpio_num = GPIO_NUM_NC,
         .flags = {
-            .swap_xy = 0,
-            .mirror_x = 0,
+            .swap_xy = 1,
+            .mirror_x = 1,
             .mirror_y = 0,
         },
     };
