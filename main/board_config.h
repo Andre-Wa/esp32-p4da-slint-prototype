@@ -66,3 +66,16 @@
  * Confirme visualmente/pela serigrafia da placa ou testando ambas —
  * conectar o teclado na porta errada simplesmente não vai enumerar
  * dispositivo nenhum, não há risco de dano. */
+
+ /* ---------------------------------------------------------------------
+ * Cartão MicroSD (SDMMC 4-bit) + LDO de alimentação          [CONFIRMADO]
+ * --------------------------------------------------------------------- */
+#define BOARD_SD_LDO_CHAN    4
+#define BOARD_SD_LDO_MV      3300  /* 3.3V padrão para MicroSD */
+
+#define BOARD_SD_CLK_GPIO    GPIO_NUM_43
+#define BOARD_SD_CMD_GPIO    GPIO_NUM_44
+#define BOARD_SD_D0_GPIO     GPIO_NUM_39
+#define BOARD_SD_D1_GPIO     GPIO_NUM_40
+#define BOARD_SD_D2_GPIO     GPIO_NUM_46
+#define BOARD_SD_D3_GPIO     GPIO_NUM_45
