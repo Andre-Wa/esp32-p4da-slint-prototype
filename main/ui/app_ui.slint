@@ -1,10 +1,9 @@
-// app_ui.slint
-//
-// Tela de teste com uma grade de botões (6, em 3x2) espalhados pela
-// tela — bom pra validar toque em vários pontos diferentes, e já serve
-// de esboço visual pro launcher de apps do PDA (cada botão vira uma
-// tela de verdade mais pra frente). Mantém o indicador de última tecla
-// do teclado USB no rodapé.
+import { ListView } from "std-widgets.slint";
+
+export enum AppState {
+    Launcher,
+    FileManager
+}
 
 component AppButton inherits Rectangle {
     in property <string> text;
@@ -28,24 +27,19 @@ component AppButton inherits Rectangle {
     }
 }
 
-export component AppWindow inherits Window {
-    width: 800px;
-    height: 480px;
-    background: #14181f;
-
-    // Preenchido pelo lado C++ (main.cpp) a cada tecla recebida do
-    // teclado USB.
-    in property <string> last-key: "—";
+// --- TELA 1: O LAUNCHER ---
+component LauncherScreen inherits Rectangle {
+    in property <string> last-key;
+    callback open-app(string);
 
     property <string> last-pressed: "nenhum";
-    property <int> press-count: 0;
 
     VerticalLayout {
         padding: 20px;
         spacing: 16px;
 
         Text {
-            text: "PDA — grade de teste";
+            text: "PDA — Menu Principal";
             font-size: 26px;
             font-weight: 700;
             color: white;
@@ -54,52 +48,113 @@ export component AppWindow inherits Window {
 
         GridLayout {
             spacing: 14px;
-
             Row {
-                AppButton {
-                    text: "Notas";
-                    clicked => { last-pressed = "Notas"; press-count += 1; }
-                }
-                AppButton {
-                    text: "Agenda";
-                    clicked => { last-pressed = "Agenda"; press-count += 1; }
-                }
-                AppButton {
-                    text: "Alarmes";
-                    clicked => { last-pressed = "Alarmes"; press-count += 1; }
-                }
+                AppButton { text: "Notas"; clicked => { root.open-app("Notas"); } }
+                AppButton { text: "Agenda"; clicked => { root.open-app("Agenda"); } }
+                // Modificamos este botão para abrir os arquivos:
+                AppButton { text: "Arquivos"; clicked => { root.open-app("Arquivos"); } }
             }
             Row {
-                AppButton {
-                    text: "Contatos";
-                    clicked => { last-pressed = "Contatos"; press-count += 1; }
-                }
-                AppButton {
-                    text: "Relógio";
-                    clicked => { last-pressed = "Relógio"; press-count += 1; }
-                }
-                AppButton {
-                    text: "Config";
-                    clicked => { last-pressed = "Config"; press-count += 1; }
-                }
+                AppButton { text: "Contatos"; clicked => { root.open-app("Contatos"); } }
+                AppButton { text: "Relógio"; clicked => { root.open-app("Relógio"); } }
+                AppButton { text: "Config"; clicked => { root.open-app("Config"); } }
             }
         }
 
         HorizontalLayout {
             spacing: 32px;
             alignment: center;
+            Text { text: "Última tecla (USB): " + root.last-key; font-size: 15px; color: #7fdbff; }
+        }
+    }
+}
 
-            Text {
-                text: "Último botão: " + last-pressed + " (" + press-count + "x)";
-                font-size: 15px;
-                color: #7fdbff;
-            }
+// --- TELA 2: GERENCIADOR DE ARQUIVOS ---
+component FileManagerScreen inherits Rectangle {
+    in property <[string]> files;
+    callback go-back();
 
+    VerticalLayout {
+        padding: 20px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            alignment: space-between;
             Text {
-                text: "Última tecla (USB): " + root.last-key;
-                font-size: 15px;
-                color: #7fdbff;
+                text: "Meus Arquivos";
+                font-size: 24px;
+                font-weight: 700;
+                color: white;
+                vertical-alignment: center;
             }
+            
+            // Botão de Voltar
+            TouchArea {
+                width: 100px;
+                height: 40px;
+                Rectangle {
+                    background: parent.pressed ? #8B0000 : #d9534f;
+                    border-radius: 8px;
+                    Text { text: "Voltar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.go-back(); }
+            }
+        }
+
+        Rectangle {
+            background: #1d2330;
+            border-radius: 8px;
+            
+            ListView {
+                for file in root.files: Rectangle {
+                    height: 40px;
+                    Text {
+                        x: 10px;
+                        text: file;
+                        color: #7fdbff;
+                        font-size: 18px;
+                        vertical-alignment: center;
+                    }
+                    Rectangle {
+                        y: parent.height - 1px;
+                        height: 1px;
+                        background: #333c4d;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- JANELA PRINCIPAL (ROTEADOR) ---
+export component AppWindow inherits Window {
+    width: 800px;
+    height: 480px;
+    background: #14181f;
+
+    in property <string> last-key: "—";
+    
+    // Controle de estado das telas
+    in-out property <AppState> active-app: AppState.Launcher;
+    
+    // Lista de arquivos enviada pelo C++
+    in property <[string]> file-list;
+    callback request-file-list();
+
+    if (active-app == AppState.Launcher) : LauncherScreen {
+        last-key: root.last-key;
+        open-app(app-name) => {
+            if (app-name == "Arquivos") {
+                root.request-file-list(); // Pede ao C++ para ler as pastas
+                root.active-app = AppState.FileManager; // Troca a tela
+            }
+        }
+    }
+
+    if (active-app == AppState.FileManager) : FileManagerScreen {
+        files: root.file-list;
+        go-back => {
+            root.active-app = AppState.Launcher;
         }
     }
 }
