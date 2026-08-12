@@ -16,6 +16,7 @@
 #include "display_init.h"
 #include "touch_init.h"
 #include "usb_hid_keyboard.h"
+#include "storage_init.h"
 
 #include "esp_log.h"
 #include <private/slint_size.h>
@@ -27,7 +28,10 @@ static const char *TAG = "main";
 
 extern "C" void app_main(void)
 {
-    ESP_LOGI(TAG, "iniciando bring-up: display -> touch -> slint -> usb");
+    ESP_LOGI(TAG, "iniciando bring-up: storage -> display -> touch -> slint -> usb");
+
+    // Inicializa Memória Interna e Cartão SD
+    board_storage_init();
 
     esp_lcd_panel_handle_t panel = nullptr;
     ESP_ERROR_CHECK(board_display_init(&panel));
