@@ -4,6 +4,7 @@ idf_component_register(
         "display_init.c"
         "touch_init.c"
         "usb_hid_keyboard.cpp"
+        "storage_init.c"     
     INCLUDE_DIRS "."
     REQUIRES
         esp_lcd
@@ -16,6 +17,7 @@ idf_component_register(
         esp_psram
         fatfs
         sdmmc
+        littlefs
 )
 
 # CMP0116 controla como o Ninja interpreta o DEPFILE gerado pelo
