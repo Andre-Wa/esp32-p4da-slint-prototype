@@ -99,7 +99,22 @@ static void hid_host_device_event(hid_host_device_handle_t hid_device_handle,
     hid_host_device_get_params(hid_device_handle, &dev_params);
 
     if (event == HID_HOST_DRIVER_EVENT_CONNECTED) {
-        ESP_LOGI(TAG, "dispositivo HID conectado (subclass=%d proto=%d)",
+        /* Alguns teclados (ou o próprio adaptador OTG) expõem mais de uma
+         * interface HID — normalmente a de teclado (boot protocol) e uma
+         * segunda "vestigial" sem protocolo nenhum. Tentar abrir/iniciar
+         * essa segunda interface causa timeout de control transfer e, se
+         * isso acontecer bem na hora em que o usuário está digitando
+         * (relatórios chegando pela primeira interface ao mesmo tempo),
+         * corrompe um lock interno do driver USB Host e derruba o
+         * firmware. Ignorar qualquer interface que não seja
+         * especificamente de teclado evita esse cenário inteiro. */
+        if (dev_params.proto != HID_PROTOCOL_KEYBOARD) {
+            ESP_LOGW(TAG, "ignorando interface HID não-teclado (subclass=%d proto=%d)",
+                     dev_params.sub_class, dev_params.proto);
+            return;
+        }
+
+        ESP_LOGI(TAG, "teclado conectado (subclass=%d proto=%d)",
                  dev_params.sub_class, dev_params.proto);
 
         const hid_host_device_config_t dev_config = {
@@ -110,9 +125,7 @@ static void hid_host_device_event(hid_host_device_handle_t hid_device_handle,
 
         if (dev_params.sub_class == HID_SUBCLASS_BOOT_INTERFACE) {
             hid_class_request_set_protocol(hid_device_handle, HID_REPORT_PROTOCOL_BOOT);
-            if (dev_params.proto == HID_PROTOCOL_KEYBOARD) {
-                hid_class_request_set_idle(hid_device_handle, 0, 0);
-            }
+            hid_class_request_set_idle(hid_device_handle, 0, 0);
         }
         hid_host_device_start(hid_device_handle);
     }
