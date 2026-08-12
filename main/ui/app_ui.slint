@@ -1,9 +1,32 @@
 // app_ui.slint
 //
-// Tela única de bring-up: mostra a última tecla recebida do teclado USB
-// e um botão pra provar que o touch (GT911) também está funcionando.
-// Isso NÃO é o PDA final — é só pra validar o toolchain (Slint + touch +
-// teclado USB) antes de começar a construir as telas de verdade.
+// Tela de teste com uma grade de botões (6, em 3x2) espalhados pela
+// tela — bom pra validar toque em vários pontos diferentes, e já serve
+// de esboço visual pro launcher de apps do PDA (cada botão vira uma
+// tela de verdade mais pra frente). Mantém o indicador de última tecla
+// do teclado USB no rodapé.
+
+component AppButton inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+
+    border-radius: 12px;
+    background: touch-area.pressed ? #2a3140 : #1d2330;
+    border-width: 1px;
+    border-color: touch-area.pressed ? #4a90d9 : #333c4d;
+
+    Text {
+        text: root.text;
+        font-size: 20px;
+        color: white;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch-area := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
 
 export component AppWindow inherits Window {
     width: 800px;
@@ -14,53 +37,68 @@ export component AppWindow inherits Window {
     // teclado USB.
     in property <string> last-key: "—";
 
-    property <int> touch-count: 0;
+    property <string> last-pressed: "nenhum";
+    property <int> press-count: 0;
 
     VerticalLayout {
-        alignment: center;
-        spacing: 24px;
-        padding: 24px;
+        padding: 20px;
+        spacing: 16px;
 
         Text {
-            text: "PDA — teste de bring-up";
-            font-size: 34px;
+            text: "PDA — grade de teste";
+            font-size: 26px;
             font-weight: 700;
             color: white;
             horizontal-alignment: center;
         }
 
-        Text {
-            text: "Última tecla (USB): " + root.last-key;
-            font-size: 24px;
-            color: #7fdbff;
-            horizontal-alignment: center;
+        GridLayout {
+            spacing: 14px;
+
+            Row {
+                AppButton {
+                    text: "Notas";
+                    clicked => { last-pressed = "Notas"; press-count += 1; }
+                }
+                AppButton {
+                    text: "Agenda";
+                    clicked => { last-pressed = "Agenda"; press-count += 1; }
+                }
+                AppButton {
+                    text: "Alarmes";
+                    clicked => { last-pressed = "Alarmes"; press-count += 1; }
+                }
+            }
+            Row {
+                AppButton {
+                    text: "Contatos";
+                    clicked => { last-pressed = "Contatos"; press-count += 1; }
+                }
+                AppButton {
+                    text: "Relógio";
+                    clicked => { last-pressed = "Relógio"; press-count += 1; }
+                }
+                AppButton {
+                    text: "Config";
+                    clicked => { last-pressed = "Config"; press-count += 1; }
+                }
+            }
         }
 
-        Text {
-            text: "Toques na tela: " + touch-count;
-            font-size: 24px;
-            color: #7fdbff;
-            horizontal-alignment: center;
-        }
-
-        Rectangle {
-            width: 220px;
-            height: 64px;
-            border-radius: 10px;
-            background: touch-area.pressed ? #005f8f : #0077b6;
+        HorizontalLayout {
+            spacing: 32px;
+            alignment: center;
 
             Text {
-                text: "Toque aqui";
-                color: white;
-                font-size: 20px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+                text: "Último botão: " + last-pressed + " (" + press-count + "x)";
+                font-size: 15px;
+                color: #7fdbff;
             }
 
-            touch-area := TouchArea {
-                clicked => {
-                    touch-count += 1;
-                }
+            Text {
+                text: "Última tecla (USB): " + root.last-key;
+                font-size: 15px;
+                color: #7fdbff;
             }
         }
     }
