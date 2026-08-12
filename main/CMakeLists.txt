@@ -14,6 +14,8 @@ idf_component_register(
         esp_driver_ledc
         nvs_flash
         esp_psram
+        fatfs
+        sdmmc
 )
 
 # CMP0116 controla como o Ninja interpreta o DEPFILE gerado pelo

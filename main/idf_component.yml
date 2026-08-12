@@ -21,3 +21,7 @@ dependencies:
   # UI toolkit.
   slint/slint:
     version: "^1.12.1"
+
+  # Sistema de arquivos
+  espressif/esp_littlefs: 
+    version: "^1.5.1"
