@@ -19,18 +19,18 @@ static const char *TAG = "touch_init";
 
 esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
 {
-    /* rst_gpio_num/int_gpio_num agora usam os pinos reais confirmados no
-     * schematic (GPIO22/GPIO20). O que isso muda na prática:
-     *   - rst_gpio_num: o driver faz um reset por hardware de verdade no
-     *     GT911 durante a inicialização, em vez de confiar só no
-     *     power-on-reset. Mais robusto, sobretudo em reboots sem power
-     *     cycle completo.
-     *   - int_gpio_num: por si só NÃO muda o touch pra modo interrupção
-     *     — o loop do Slint (slint-esp.cpp, componente vendorizado)
-     *     continua fazendo polling ativo independente disso. O ganho
-     *     real de eficiência de uma interrupção de verdade exigiria
-     *     modificar esse loop, o que não vale a pena mexer num
-     *     componente de terceiros por enquanto. */
+    /* rst_gpio_num/int_gpio_num ficam em NC de propósito. O GT911
+     * seleciona o próprio endereço I2C (0x5D ou 0x14) com base no estado
+     * do pino INT durante o pulso de reset — ao fornecer rst_gpio_num
+     * real (testado: GPIO22) sem sequenciar o INT corretamente durante
+     * esse pulso, o chip ficou num endereço diferente do esperado e toda
+     * comunicação I2C passou a falhar com NACK (testado e confirmado
+     * quebrando o boot). Com NC em ambos, o driver nunca mexe nesses
+     * pinos e o GT911 fica no endereço que assume sozinho no power-on —
+     * que é o que comprovadamente funciona. Se algum dia valer a pena
+     * revisitar isso, precisa implementar a sequência de reset completa
+     * (INT como saída, nível definido, timing certo do datasheet do
+     * GT911) em vez de só passar os pinos pro driver genérico. */
     i2c_master_bus_config_t bus_config = {
         .i2c_port = BOARD_I2C_PORT,
         .sda_io_num = BOARD_I2C_SDA_GPIO,
@@ -59,8 +59,8 @@ esp_err_t board_touch_init(esp_lcd_touch_handle_t *out_touch)
     esp_lcd_touch_config_t tp_cfg = {
         .x_max = BOARD_LCD_H_RES_NATIVE,
         .y_max = BOARD_LCD_V_RES_NATIVE,
-        .rst_gpio_num = BOARD_TOUCH_RST_GPIO,
-        .int_gpio_num = BOARD_TOUCH_INT_GPIO,
+        .rst_gpio_num = GPIO_NUM_NC,
+        .int_gpio_num = GPIO_NUM_NC,
         .flags = {
             .swap_xy = 1,
             .mirror_x = 1,

@@ -26,8 +26,11 @@
 #define BOARD_GT911_ADDR_1    0x14
 #define BOARD_GT911_ADDR_2    0x5D
 
-/* Confirmados no esquemático oficial da GUITION (JC-ESP32P4-M3). Ver
- * nota em touch_init.c sobre o que rst_gpio_num de fato melhora. */
+/* Confirmados no esquemático oficial da GUITION (JC-ESP32P4-M3). NÃO
+ * usadas no touch_init.c atual — testado e quebra a comunicação I2C do
+ * GT911 (ver comentário detalhado em touch_init.c). Mantidas aqui como
+ * referência caso alguém implemente a sequência de reset completa no
+ * futuro. */
 #define BOARD_TOUCH_RST_GPIO   GPIO_NUM_22
 #define BOARD_TOUCH_INT_GPIO   GPIO_NUM_20
 
