@@ -26,6 +26,18 @@
 #define BOARD_GT911_ADDR_1    0x14
 #define BOARD_GT911_ADDR_2    0x5D
 
+/* Confirmados no esquemático oficial da GUITION (JC-ESP32P4-M3). Ver
+ * nota em touch_init.c sobre o que rst_gpio_num de fato melhora. */
+#define BOARD_TOUCH_RST_GPIO   GPIO_NUM_22
+#define BOARD_TOUCH_INT_GPIO   GPIO_NUM_20
+
+/* Confirmados no esquemático oficial da GUITION (JC-ESP32P4-M3):
+ * reset e interrupt dedicados do GT911, hoje não utilizados (o driver
+ * funciona via polling puro sem eles, mas conectá-los deixa o touch
+ * mais robusto — reset garante estado limpo no boot). */
+#define BOARD_TOUCH_RST_GPIO   GPIO_NUM_22
+#define BOARD_TOUCH_INT_GPIO   GPIO_NUM_20
+
 /* ---------------------------------------------------------------------
  * Painel MIPI-DSI (ST7701S)                                   [CONFIRMADO]
  * --------------------------------------------------------------------- */
@@ -58,14 +70,16 @@
 #define BOARD_LCD_BL_PWM_FREQ_HZ    20000
 
 /* ---------------------------------------------------------------------
- * USB Host (teclado)                                            [VERIFICAR]
+ * USB Host (teclado)                                          [CONFIRMADO]
  * --------------------------------------------------------------------- */
-/* O ESP32-P4 tem um único periférico USB-OTG 2.0 High-Speed nativo capaz
- * de modo Host. Se a placa tem duas portas USB-C, uma delas
- * provavelmente é só USB-Serial-JTAG (flash/log) e a outra é a OTG real.
- * Confirme visualmente/pela serigrafia da placa ou testando ambas —
- * conectar o teclado na porta errada simplesmente não vai enumerar
- * dispositivo nenhum, não há risco de dano. */
+/* Confirmado via schematic oficial do fabricante: a placa tem duas
+ * portas USB-C fisicamente distintas, ligadas a periféricos diferentes
+ * do ESP32-P4:
+ *   - "Full Speed USB" (bloco USB2 no schematic) -> USB-Serial-JTAG.
+ *     Essa é a porta de flash/monitor (idf.py flash monitor). NÃO serve
+ *     pra Host mode.
+ *   - "High Speed USB" (bloco USB3, sinais ESP_USB_P/ESP_USB_N) ->
+ *     USB-OTG 2.0 HS nativo. Essa é a porta certa pro teclado. */
 
  /* ---------------------------------------------------------------------
  * Cartão MicroSD (SDMMC 4-bit) + LDO de alimentação          [CONFIRMADO]
