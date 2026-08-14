@@ -34,13 +34,6 @@
 #define BOARD_TOUCH_RST_GPIO   GPIO_NUM_22
 #define BOARD_TOUCH_INT_GPIO   GPIO_NUM_20
 
-/* Confirmados no esquemático oficial da GUITION (JC-ESP32P4-M3):
- * reset e interrupt dedicados do GT911, hoje não utilizados (o driver
- * funciona via polling puro sem eles, mas conectá-los deixa o touch
- * mais robusto — reset garante estado limpo no boot). */
-#define BOARD_TOUCH_RST_GPIO   GPIO_NUM_22
-#define BOARD_TOUCH_INT_GPIO   GPIO_NUM_20
-
 /* ---------------------------------------------------------------------
  * Painel MIPI-DSI (ST7701S)                                   [CONFIRMADO]
  * --------------------------------------------------------------------- */
