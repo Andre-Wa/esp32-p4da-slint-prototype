@@ -2,7 +2,9 @@ import { ListView } from "std-widgets.slint";
 
 export enum AppState {
     Launcher,
-    FileManager
+    FileManager,
+    NotesList,
+    NoteEdit,
 }
 
 component AppButton inherits Rectangle {
@@ -51,7 +53,6 @@ component LauncherScreen inherits Rectangle {
             Row {
                 AppButton { text: "Notas"; clicked => { root.open-app("Notas"); } }
                 AppButton { text: "Agenda"; clicked => { root.open-app("Agenda"); } }
-                // Modificamos este botão para abrir os arquivos:
                 AppButton { text: "Arquivos"; clicked => { root.open-app("Arquivos"); } }
             }
             Row {
@@ -126,6 +127,176 @@ component FileManagerScreen inherits Rectangle {
     }
 }
 
+// --- TELA 3: LISTA DE NOTAS ---
+component NotesListScreen inherits Rectangle {
+    in property <[string]> notes;
+    callback go-back();
+    callback open-note(string);
+    callback new-note();
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: "Notas";
+                font-size: 24px;
+                font-weight: 700;
+                color: white;
+                vertical-alignment: center;
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+
+                TouchArea {
+                    width: 130px;
+                    height: 40px;
+                    Rectangle {
+                        background: parent.pressed ? #2d6a9f : #4a90d9;
+                        border-radius: 8px;
+                        Text { text: "+ Nova nota"; color: white; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    clicked => { root.new-note(); }
+                }
+
+                TouchArea {
+                    width: 100px;
+                    height: 40px;
+                    Rectangle {
+                        background: parent.pressed ? #8B0000 : #d9534f;
+                        border-radius: 8px;
+                        Text { text: "Voltar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    clicked => { root.go-back(); }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #1d2330;
+            border-radius: 8px;
+
+            ListView {
+                for note in root.notes: TouchArea {
+                    height: 44px;
+                    clicked => { root.open-note(note); }
+
+                    Rectangle {
+                        background: parent.pressed ? #2a3140 : transparent;
+
+                        Text {
+                            x: 10px;
+                            text: note;
+                            color: #7fdbff;
+                            font-size: 18px;
+                            vertical-alignment: center;
+                        }
+                        Rectangle {
+                            y: parent.height - 1px;
+                            height: 1px;
+                            background: #333c4d;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- TELA 4: EDIÇÃO DE NOTA ---
+component NoteEditScreen inherits Rectangle {
+    in property <string> note-name;
+    in property <string> note-buffer;
+    in property <bool> is-new;
+    callback save-note();
+    callback delete-note();
+    callback go-back();
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 12px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: root.note-name;
+                font-size: 22px;
+                font-weight: 700;
+                color: white;
+                vertical-alignment: center;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+
+                TouchArea {
+                    width: 90px;
+                    height: 38px;
+                    Rectangle {
+                        background: parent.pressed ? #2d6a9f : #4a90d9;
+                        border-radius: 8px;
+                        Text { text: "Salvar"; color: white; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    clicked => { root.save-note(); }
+                }
+
+                if !root.is-new: TouchArea {
+                    width: 90px;
+                    height: 38px;
+                    Rectangle {
+                        background: parent.pressed ? #8B0000 : #d9534f;
+                        border-radius: 8px;
+                        Text { text: "Apagar"; color: white; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    clicked => { root.delete-note(); }
+                }
+
+                TouchArea {
+                    width: 90px;
+                    height: 38px;
+                    Rectangle {
+                        background: parent.pressed ? #3a4150 : #4d5566;
+                        border-radius: 8px;
+                        Text { text: "Voltar"; color: white; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                    clicked => { root.go-back(); }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #1d2330;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #333c4d;
+
+            Flickable {
+                viewport-height: content-text.height;
+
+                content-text := Text {
+                    x: 12px;
+                    y: 10px;
+                    width: parent.width - 24px;
+                    text: root.note-buffer + "▏";
+                    color: white;
+                    font-size: 17px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        Text {
+            text: "Digite no teclado USB — Salvar grava no armazenamento interno.";
+            font-size: 13px;
+            color: #6b7688;
+            horizontal-alignment: center;
+        }
+    }
+}
+
 // --- JANELA PRINCIPAL (ROTEADOR) ---
 export component AppWindow inherits Window {
     width: 800px;
@@ -133,20 +304,36 @@ export component AppWindow inherits Window {
     background: #14181f;
 
     in property <string> last-key: "—";
-    
+
     // Controle de estado das telas
     in-out property <AppState> active-app: AppState.Launcher;
-    
-    // Lista de arquivos enviada pelo C++
+
+    // Lista de arquivos enviada pelo C++ (tela Arquivos)
     in property <[string]> file-list;
     callback request-file-list();
+
+    // Lista de notas enviada pelo C++ (tela Notas)
+    in property <[string]> notes-list;
+    callback request-notes-list();
+
+    // Nota atualmente aberta pra edição
+    in-out property <string> note-name: "";
+    in-out property <string> note-buffer: "";
+    in-out property <bool> note-is-new: false;
+    callback open-note(string);
+    callback new-note();
+    callback save-note();
+    callback delete-note();
 
     if (active-app == AppState.Launcher) : LauncherScreen {
         last-key: root.last-key;
         open-app(app-name) => {
             if (app-name == "Arquivos") {
-                root.request-file-list(); // Pede ao C++ para ler as pastas
-                root.active-app = AppState.FileManager; // Troca a tela
+                root.request-file-list();
+                root.active-app = AppState.FileManager;
+            } else if (app-name == "Notas") {
+                root.request-notes-list();
+                root.active-app = AppState.NotesList;
             }
         }
     }
@@ -155,6 +342,35 @@ export component AppWindow inherits Window {
         files: root.file-list;
         go-back => {
             root.active-app = AppState.Launcher;
+        }
+    }
+
+    if (active-app == AppState.NotesList) : NotesListScreen {
+        notes: root.notes-list;
+        go-back => {
+            root.active-app = AppState.Launcher;
+        }
+        open-note(name) => {
+            root.open-note(name);
+        }
+        new-note => {
+            root.new-note();
+        }
+    }
+
+    if (active-app == AppState.NoteEdit) : NoteEditScreen {
+        note-name: root.note-name;
+        note-buffer: root.note-buffer;
+        is-new: root.note-is-new;
+        save-note => {
+            root.save-note();
+        }
+        delete-note => {
+            root.delete-note();
+        }
+        go-back => {
+            root.active-app = AppState.NotesList;
+            root.request-notes-list();
         }
     }
 }
