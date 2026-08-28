@@ -9,6 +9,11 @@
 #include "driver/sdmmc_host.h"
 #include "sdmmc_cmd.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <errno.h>
+
 static const char *TAG = "storage_init";
 static esp_ldo_channel_handle_t s_ldo_sd = NULL;
 
@@ -80,5 +85,56 @@ esp_err_t board_storage_init(void)
 {
     init_internal_littlefs();
     init_sdcard_sdmmc();
+    storage_ensure_dir("/internal/notes");
     return ESP_OK; // Sempre retorna OK para não travar o boot se não houver cartão
+}
+
+esp_err_t storage_ensure_dir(const char *path)
+{
+    if (mkdir(path, 0755) != 0 && errno != EEXIST) {
+        ESP_LOGE(TAG, "mkdir(%s) falhou: %s", path, strerror(errno));
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+esp_err_t storage_read_text_file(const char *path, char *out_buf, size_t buf_size, size_t *out_len)
+{
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        ESP_LOGW(TAG, "storage_read_text_file: não abriu %s (%s)", path, strerror(errno));
+        return ESP_FAIL;
+    }
+    size_t n = fread(out_buf, 1, buf_size - 1, f);
+    fclose(f);
+    out_buf[n] = '\0';
+    if (out_len) {
+        *out_len = n;
+    }
+    return ESP_OK;
+}
+
+esp_err_t storage_write_text_file(const char *path, const char *data, size_t len)
+{
+    FILE *f = fopen(path, "w");
+    if (!f) {
+        ESP_LOGE(TAG, "storage_write_text_file: não abriu %s (%s)", path, strerror(errno));
+        return ESP_FAIL;
+    }
+    size_t written = fwrite(data, 1, len, f);
+    fclose(f);
+    if (written != len) {
+        ESP_LOGE(TAG, "storage_write_text_file: escreveu %u/%u bytes em %s", (unsigned)written, (unsigned)len, path);
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+esp_err_t storage_delete_file(const char *path)
+{
+    if (remove(path) != 0 && errno != ENOENT) {
+        ESP_LOGW(TAG, "storage_delete_file: falha ao apagar %s (%s)", path, strerror(errno));
+        return ESP_FAIL;
+    }
+    return ESP_OK;
 }
