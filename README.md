@@ -184,11 +184,22 @@ causar uma race condition real (já vimos isso acontecer).
 - Construir as telas reais por trás dos botões do launcher: Notas
   (usando o storage já pronto), Agenda, Alarmes, Contatos
 - WiFi via ESP32-C6 (ESP-Hosted) pra sincronização/NTP — ainda não
-  investigado nessa sessão
-- Investigar se o par I2C `RTC_DAT/SDA1`/`RTC_CLK/SCL1` (GPIO29/30) no
-  schematic é mesmo um RTC de hardware dedicado — resolveria manter hora
-  certa sem depender de WiFi
+  investigado nessa sessão. **Sem bateria dedicada nem RTC de hardware
+  (ver nota abaixo), a hora sincronizada se perde toda vez que a placa
+  fica sem energia por completo** — então isso e a bateria caminham
+  juntos na prática, mesmo não sendo tecnicamente dependentes um do
+  outro
 - Áudio (ES8311 + ES7210 + amplificador) pra som de alarme/notificação —
   hardware presente no schematic, não usado ainda
 - Leitura de nível de bateria via o chip de gerenciamento de energia
   (IP5306) visível no schematic
+- Se quiser hora certa mesmo com a placa totalmente sem energia entre
+  usos, vai precisar adicionar um RTC externo de verdade (ex: DS3231)
+  no barramento I2C compartilhado (GPIO7/8) — ver nota abaixo
+
+**Sobre o RTC — resolvido:** `RTC_DAT/SDA1`/`RTC_CLK/SCL1` que aparecem
+no schematic **não são um RTC de hardware separado** — são só um nome
+alternativo (herdado do conector FPC do módulo de tela) pro mesmo
+barramento I2C já usado pelo touch e pelo codec de áudio (`GPIO7`/`GPIO8`,
+confirmado no schematic: `ES_I2C_SDA` = `RTC_DAT/SDA1`, mesmo fio). Essa
+placa não tem RTC dedicado.
