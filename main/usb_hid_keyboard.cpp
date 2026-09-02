@@ -46,8 +46,14 @@ static uint8_t hid_keycode_to_ascii(uint8_t keycode, bool shift)
 
 static void hid_keyboard_report_callback(const uint8_t *const data, const int length)
 {
+    // DEBUG: mostra exatamente o que chegou, byte a byte, antes de
+    // qualquer filtro — remova depois de diagnosticar.
+    ESP_LOGI(TAG, "relatório recebido: length=%d", length);
+    ESP_LOG_BUFFER_HEX(TAG, data, length > 0 ? length : 0);
+
     // Boot protocol: byte0 = modificadores, byte1 = reservado, bytes2..7 = até 6 keycodes
     if (length < 8) {
+        ESP_LOGW(TAG, "relatório descartado: length=%d menor que 8 (formato boot protocol esperado)", length);
         return;
     }
     uint8_t modifiers = data[0];
@@ -59,6 +65,7 @@ static void hid_keyboard_report_callback(const uint8_t *const data, const int le
             continue;
         }
         uint8_t ascii = hid_keycode_to_ascii(keycode, shift);
+        ESP_LOGI(TAG, "tecla: keycode=0x%02X ascii=%c(0x%02X) modifiers=0x%02X", keycode, ascii ? ascii : '?', ascii, modifiers);
         if (s_callback) {
             s_callback(ascii, keycode, modifiers);
         }
@@ -77,9 +84,15 @@ static void hid_host_interface_callback(hid_host_device_handle_t hid_device_hand
     switch (event) {
     case HID_HOST_INTERFACE_EVENT_INPUT_REPORT:
         hid_host_device_get_raw_input_report_data(hid_device_handle, data, sizeof(data), &data_length);
+        // DEBUG: confirma que o evento disparou e o resultado do filtro —
+        // remova depois de diagnosticar.
+        ESP_LOGI(TAG, "INPUT_REPORT recebido (subclass=%d proto=%d, data_length=%u)",
+                 dev_params.sub_class, dev_params.proto, (unsigned)data_length);
         if (dev_params.sub_class == HID_SUBCLASS_BOOT_INTERFACE &&
             dev_params.proto == HID_PROTOCOL_KEYBOARD) {
             hid_keyboard_report_callback(data, (int)data_length);
+        } else {
+            ESP_LOGW(TAG, "relatório ignorado: subclass/proto não bateu com boot keyboard");
         }
         break;
     case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
@@ -99,35 +112,56 @@ static void hid_host_device_event(hid_host_device_handle_t hid_device_handle,
     hid_host_device_get_params(hid_device_handle, &dev_params);
 
     if (event == HID_HOST_DRIVER_EVENT_CONNECTED) {
-        /* Alguns teclados (ou o próprio adaptador OTG) expõem mais de uma
-         * interface HID — normalmente a de teclado (boot protocol) e uma
-         * segunda "vestigial" sem protocolo nenhum. Tentar abrir/iniciar
-         * essa segunda interface causa timeout de control transfer e, se
-         * isso acontecer bem na hora em que o usuário está digitando
-         * (relatórios chegando pela primeira interface ao mesmo tempo),
-         * corrompe um lock interno do driver USB Host e derruba o
-         * firmware. Ignorar qualquer interface que não seja
-         * especificamente de teclado evita esse cenário inteiro. */
-        if (dev_params.proto != HID_PROTOCOL_KEYBOARD) {
-            ESP_LOGW(TAG, "ignorando interface HID não-teclado (subclass=%d proto=%d)",
+        /* Por especificação USB HID, o campo `proto` só tem significado
+         * quando o dispositivo declara boot protocol (subclass=1) — é um
+         * modo legado pra digitar antes do SO carregar um driver de
+         * verdade (BIOS/UEFI). Um teclado desktop comum normalmente
+         * declara isso (subclass=1, proto=1). Mas o usb_hid do
+         * CircuitPython/KMK NÃO declara boot protocol por padrão — expõe
+         * um HID genérico válido (subclass=0, proto=0), que é
+         * perfeitamente funcional em qualquer SO moderno, só não é
+         * "boot compatible". Por isso aceitamos as duas situações, e só
+         * rejeitamos explicitamente o que sabemos que não é teclado
+         * (ex: um mouse em boot protocol, proto=2). Isso também aceita
+         * interfaces HID genéricas não-teclado (a tal "interface
+         * fantasma" que já derrubou o firmware antes) — por isso as
+         * chamadas abaixo agora checam erro em vez de ignorar, pra uma
+         * interface que falhe ao abrir/iniciar não colocar o sistema
+         * num estado inconsistente. */
+        bool parece_teclado =
+            (dev_params.sub_class == HID_SUBCLASS_BOOT_INTERFACE && dev_params.proto == HID_PROTOCOL_KEYBOARD) ||
+            (dev_params.sub_class == 0 && dev_params.proto == 0);
+
+        if (!parece_teclado) {
+            ESP_LOGW(TAG, "ignorando interface HID que não parece teclado (subclass=%d proto=%d)",
                      dev_params.sub_class, dev_params.proto);
             return;
         }
 
-        ESP_LOGI(TAG, "teclado conectado (subclass=%d proto=%d)",
+        ESP_LOGI(TAG, "possível teclado conectado (subclass=%d proto=%d)",
                  dev_params.sub_class, dev_params.proto);
 
         const hid_host_device_config_t dev_config = {
             .callback = hid_host_interface_callback,
             .callback_arg = NULL,
         };
-        hid_host_device_open(hid_device_handle, &dev_config);
+        esp_err_t err = hid_host_device_open(hid_device_handle, &dev_config);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "falha ao abrir interface HID (%s) — ignorando", esp_err_to_name(err));
+            return;
+        }
 
         if (dev_params.sub_class == HID_SUBCLASS_BOOT_INTERFACE) {
             hid_class_request_set_protocol(hid_device_handle, HID_REPORT_PROTOCOL_BOOT);
             hid_class_request_set_idle(hid_device_handle, 0, 0);
         }
-        hid_host_device_start(hid_device_handle);
+
+        err = hid_host_device_start(hid_device_handle);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "falha ao iniciar interface HID (%s) — desistindo dela", esp_err_to_name(err));
+            hid_host_device_close(hid_device_handle);
+            return;
+        }
     }
 }
 
