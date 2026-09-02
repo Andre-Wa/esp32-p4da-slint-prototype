@@ -56,7 +56,7 @@ keyboard.keymap = [
         KC.QUOT, KC.N1,   KC.N2,   KC.N3,   KC.N4,   KC.N5,   KC.N6,   KC.N7,   KC.N8,   KC.N9,   KC.N0,    KC.BSPC,
         KC.TAB,  KC.EXLM, KC.AT,   KC.HASH, KC.DLR,  KC.PERC, KC.CIRC, KC.AMPR, KC.ASTR, KC.LPRN, KC.RPRN,  KC.DEL,
         _______, KC.MINS, KC.EQL,  KC.LBRC, KC.RBRC, KC.BSLS, KC.UNDS, KC.PLUS, KC.LCBR, KC.RCBR, KC.PIPE,  KC.GRV,
-        _______, _______, _______, _______, _______, _______, _______, ADJUST,  _______, _______, _______, _______,
+        _______, _______, _______, _______, ADJUST,  _______, _______, _______, _______, _______, _______, _______,
     ],
 
     # ---------------------------------------------------------------
@@ -82,3 +82,4 @@ keyboard.keymap = [
 
 if __name__ == '__main__':
     keyboard.go()
+
