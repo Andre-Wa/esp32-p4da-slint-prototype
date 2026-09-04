@@ -25,42 +25,72 @@ static KeyPressCallback s_callback = nullptr;
 /* Mapa mínimo HID keycode -> ASCII (letras minúsculas, números, espaço,
  * enter, backspace, tab). Suficiente pra provar que a entrada funciona;
  * expanda depois pra maiúsculas/símbolos conforme o app precisar. */
+/* Símbolos de layout US-QWERTY quando Shift é segurado junto com a
+ * linha de números (1-9, 0, nessa ordem). */
+static const char s_shifted_numbers[] = "!@#$%^&*()";
+
 static uint8_t hid_keycode_to_ascii(uint8_t keycode, bool shift)
 {
     if (keycode >= 0x04 && keycode <= 0x1D) { // a-z
         char c = 'a' + (keycode - 0x04);
         return shift ? (c - 'a' + 'A') : c;
     }
-    if (keycode >= 0x1E && keycode <= 0x26) { // 1-9
-        return '1' + (keycode - 0x1E);
+    if (keycode >= 0x1E && keycode <= 0x27) { // 1-9, 0 (0x27 = '0')
+        if (shift) {
+            return s_shifted_numbers[keycode - 0x1E];
+        }
+        return (keycode == 0x27) ? '0' : ('1' + (keycode - 0x1E));
     }
     switch (keycode) {
-        case 0x27: return '0';
         case 0x28: return '\n';   // Enter
         case 0x2A: return '\b';   // Backspace
         case 0x2B: return '\t';   // Tab
         case 0x2C: return ' ';    // Space
+        case 0x2D: return shift ? '_' : '-';  // - _
+        case 0x2E: return shift ? '+' : '=';  // = +
+        case 0x2F: return shift ? '{' : '[';  // [ {
+        case 0x30: return shift ? '}' : ']';  // ] }
+        case 0x31: return shift ? '|' : '\\'; // \ |
+        case 0x33: return shift ? ':' : ';';  // ; :
+        case 0x34: return shift ? '"' : '\''; // ' "
+        case 0x36: return shift ? '<' : ',';  // , <
+        case 0x37: return shift ? '>' : '.';  // . >
+        case 0x38: return shift ? '?' : '/';  // / ?
         default: return 0;        // sem mapeamento simples (setas, F1-F12, etc.)
     }
 }
 
 static void hid_keyboard_report_callback(const uint8_t *const data, const int length)
 {
-    // DEBUG: mostra exatamente o que chegou, byte a byte, antes de
-    // qualquer filtro — remova depois de diagnosticar.
+    // DEBUG: mostra exatamente o que chegou, byte a byte — remova depois
+    // de confirmar que está tudo funcionando.
     ESP_LOGI(TAG, "relatório recebido: length=%d", length);
     ESP_LOG_BUFFER_HEX(TAG, data, length > 0 ? length : 0);
 
+    const uint8_t *report = data;
+    int report_len = length;
+
+    // Alguns dispositivos (CircuitPython/KMK quando expõem mais de um
+    // tipo de relatório na mesma interface — ex: teclado + teclas de
+    // mídia) prefixam cada relatório com 1 byte de Report ID antes do
+    // payload padrão de 8 bytes do boot protocol. Se o tamanho bater com
+    // 9 (1 + 8), pula esse primeiro byte e usa o resto normalmente.
+    if (length == 9) {
+        report = data + 1;
+        report_len = 8;
+    }
+
     // Boot protocol: byte0 = modificadores, byte1 = reservado, bytes2..7 = até 6 keycodes
-    if (length < 8) {
-        ESP_LOGW(TAG, "relatório descartado: length=%d menor que 8 (formato boot protocol esperado)", length);
+    if (report_len < 8) {
+        ESP_LOGW(TAG, "relatório descartado: tamanho %d não reconhecido (esperado 8 ou 9)", length);
         return;
     }
-    uint8_t modifiers = data[0];
+
+    uint8_t modifiers = report[0];
     bool shift = modifiers & 0x22; // left shift (0x02) | right shift (0x20)
 
     for (int i = 2; i < 8; i++) {
-        uint8_t keycode = data[i];
+        uint8_t keycode = report[i];
         if (keycode == 0) {
             continue;
         }
@@ -78,22 +108,15 @@ static void hid_host_interface_callback(hid_host_device_handle_t hid_device_hand
 {
     uint8_t data[64] = {0};
     size_t data_length = 0;
-    hid_host_dev_params_t dev_params;
-    hid_host_device_get_params(hid_device_handle, &dev_params);
 
     switch (event) {
     case HID_HOST_INTERFACE_EVENT_INPUT_REPORT:
         hid_host_device_get_raw_input_report_data(hid_device_handle, data, sizeof(data), &data_length);
-        // DEBUG: confirma que o evento disparou e o resultado do filtro —
-        // remova depois de diagnosticar.
-        ESP_LOGI(TAG, "INPUT_REPORT recebido (subclass=%d proto=%d, data_length=%u)",
-                 dev_params.sub_class, dev_params.proto, (unsigned)data_length);
-        if (dev_params.sub_class == HID_SUBCLASS_BOOT_INTERFACE &&
-            dev_params.proto == HID_PROTOCOL_KEYBOARD) {
-            hid_keyboard_report_callback(data, (int)data_length);
-        } else {
-            ESP_LOGW(TAG, "relatório ignorado: subclass/proto não bateu com boot keyboard");
-        }
+        // O filtro de "isso parece teclado?" já aconteceu em
+        // hid_host_device_event (no momento da conexão) — filtrar de
+        // novo aqui por subclass/proto só rejeitava relatórios válidos
+        // de dispositivos sem boot protocol declarado (como o KMK).
+        hid_keyboard_report_callback(data, (int)data_length);
         break;
     case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "teclado desconectado");
