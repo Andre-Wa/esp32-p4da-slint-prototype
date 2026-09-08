@@ -13,6 +13,7 @@
 #include "touch_init.h"
 #include "usb_hid_keyboard.h"
 #include "storage_init.h"
+#include "wifi_init.h"
 
 #include "esp_log.h"
 #include <private/slint_size.h>
@@ -66,6 +67,14 @@ extern "C" void app_main(void)
     // Inicializa Touch
     esp_lcd_touch_handle_t touch = nullptr;
     ESP_ERROR_CHECK(board_touch_init(&touch));
+
+    // Inicializa WiFi (via ESP32-C6/SDIO) — experimental, não trava o
+    // boot se falhar. Veja o log: se aparecer "Version mismatch", é o
+    // firmware desatualizado do C6 (ver README, seção WiFi/C6).
+    esp_err_t wifi_err = board_wifi_init();
+    if (wifi_err != ESP_OK) {
+        ESP_LOGW(TAG, "WiFi não inicializou (%s) — continuando sem WiFi por enquanto", esp_err_to_name(wifi_err));
+    }
 
     // Framebuffer
     static std::vector<slint::platform::Rgb565Pixel> framebuffer(
