@@ -61,6 +61,36 @@
 #define BOARD_LCD_BL_PWM_FREQ_HZ    20000
 
 /* ---------------------------------------------------------------------
+ * WiFi/BT via ESP32-C6 coprocessador (SDIO)                  [CONFIRMADO]
+ * --------------------------------------------------------------------- */
+/* Fonte: repositório de field-notes especificamente sobre essa placa
+ * (github.com/ultramcu/guition-jc4880p443c-i-w) — não verificado por nós
+ * ainda em hardware real, mas é a fonte mais específica que encontramos.
+ *
+ * ATENÇÃO — antes de escrever qualquer código de WiFi: essa placa sai de
+ * fábrica com o firmware do C6 na versão 2.3.0, incompatível com host
+ * moderno (que espera ~2.12+). Sintoma se não corrigir: WiFi associa e
+ * cai em loop (ASSOC_LEAVE / "Restarting adapter"). É preciso reflashar
+ * o C6 ANTES de testar qualquer coisa — ver README, seção WiFi/C6. */
+#define BOARD_C6_SDIO_CLK_GPIO   GPIO_NUM_18
+#define BOARD_C6_SDIO_CMD_GPIO   GPIO_NUM_19
+#define BOARD_C6_SDIO_D0_GPIO    GPIO_NUM_14
+#define BOARD_C6_SDIO_D1_GPIO    GPIO_NUM_15
+#define BOARD_C6_SDIO_D2_GPIO    GPIO_NUM_16
+#define BOARD_C6_SDIO_D3_GPIO    GPIO_NUM_17
+#define BOARD_C6_SDIO_FREQ_KHZ   40000
+
+#define BOARD_C6_RESET_GPIO      GPIO_NUM_54  /* ativo em nível ALTO */
+
+/* Pinos de UART0 do C6, expostos no header Expand-IO (JP1) — só usados
+ * pra reflashar o firmware do C6 via adaptador USB-TTL externo, não
+ * usados em operação normal. */
+#define BOARD_C6_UART_TXD_LABEL "C6_U0RXD"  /* no JP1 — TX do adaptador vai aqui */
+#define BOARD_C6_UART_RXD_LABEL "C6_U0TXD"  /* no JP1 — RX do adaptador vai aqui */
+#define BOARD_C6_BOOT_LABEL     "C6_IO9"    /* puxar pra GND durante o reset entra em modo download */
+#define BOARD_C6_CHIP_PU_LABEL  "C6_CHIP_PU"
+
+/* ---------------------------------------------------------------------
  * USB Host (teclado)                                          [CONFIRMADO]
  * --------------------------------------------------------------------- */
 /* Confirmado via schematic oficial do fabricante: a placa tem duas
