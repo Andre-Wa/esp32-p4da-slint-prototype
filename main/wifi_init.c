@@ -49,6 +49,16 @@ static esp_err_t configure_sdio_transport(void)
     struct esp_hosted_sdio_config transport_config = INIT_DEFAULT_HOST_SDIO_CONFIG();
 
     transport_config.clock_freq_khz = BOARD_C6_SDIO_FREQ_KHZ;
+    transport_config.slot           = 1;  /* IMPORTANTE: o cartão SD (storage_init.c,
+                                              via SDMMC_HOST_DEFAULT()) usa o slot 0.
+                                              Sem isso, os dois disputam o mesmo
+                                              controlador SDMMC físico — mesmo com
+                                              pinos diferentes — e corrompe estado
+                                              interno (viu isso na prática: assert em
+                                              xQueueSemaphoreTake dentro de
+                                              sdmmc_host_do_transaction, e logo depois
+                                              o USB Host falhando ao registrar client,
+                                              os dois provavelmente pelo mesmo motivo). */
     transport_config.pin_clk.pin    = BOARD_C6_SDIO_CLK_GPIO;
     transport_config.pin_cmd.pin    = BOARD_C6_SDIO_CMD_GPIO;
     transport_config.pin_d0.pin     = BOARD_C6_SDIO_D0_GPIO;
@@ -57,9 +67,9 @@ static esp_err_t configure_sdio_transport(void)
     transport_config.pin_d3.pin     = BOARD_C6_SDIO_D3_GPIO;
     transport_config.pin_reset.pin  = BOARD_C6_RESET_GPIO;
     /* .port fica no valor default (não usado no ESP-IDF — é uma
-     * abstração multi-plataforma do componente). bus_width, slot,
-     * rx_mode, block_mode, iomux_enable e os tamanhos de fila ficam
-     * como o default já veio de INIT_DEFAULT_HOST_SDIO_CONFIG(). */
+     * abstração multi-plataforma do componente). bus_width, rx_mode,
+     * block_mode, iomux_enable e os tamanhos de fila ficam como o
+     * default já veio de INIT_DEFAULT_HOST_SDIO_CONFIG(). */
 
     esp_hosted_transport_err_t err = esp_hosted_sdio_set_config(&transport_config);
     if (err != ESP_TRANSPORT_OK) {
