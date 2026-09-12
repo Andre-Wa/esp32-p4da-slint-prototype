@@ -1,10 +1,20 @@
 import { ListView } from "std-widgets.slint";
 
+export struct WifiNetwork {
+    ssid: string,
+    rssi: int,
+    secured: bool,
+}
+
 export enum AppState {
     Launcher,
     FileManager,
     NotesList,
     NoteEdit,
+    WifiConfig,
+    WifiPassword,
+    Clock,
+    ClockSetTime,
 }
 
 component AppButton inherits Rectangle {
@@ -32,6 +42,8 @@ component AppButton inherits Rectangle {
 // --- TELA 1: O LAUNCHER ---
 component LauncherScreen inherits Rectangle {
     in property <string> last-key;
+    in property <string> wifi-status;
+    in property <bool> wifi-connected;
     callback open-app(string);
 
     property <string> last-pressed: "nenhum";
@@ -67,6 +79,450 @@ component LauncherScreen inherits Rectangle {
             alignment: center;
             Text { text: "Última tecla (USB): " + root.last-key; font-size: 15px; color: #7fdbff; }
         }
+
+        Rectangle {
+            width: 100%;
+            height: 60px;
+            background: #1d2330;
+            border-radius: 8px;
+
+            HorizontalLayout {
+                padding: 10px;
+                spacing: 10px;
+                alignment: center;
+
+                Text {
+                    text: "WiFi:";
+                    font-size: 16px;
+                    color: #aaa;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.wifi-status;
+                    font-size: 16px;
+                    color: root.wifi-connected ? #4caf50 : #f44336;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
+
+// --- TELA 5: CONFIGURAÇÃO DE WIFI ---
+component WifiConfigScreen inherits Rectangle {
+    callback go-back();
+    callback scan-networks();
+    callback connect-to-network(string, string);
+    callback request-password(string);
+    callback disconnect();
+
+    in property <[WifiNetwork]> available-networks;
+    in property <string> connected-ssid;
+    in property <bool> is-scanning;
+    in property <string> status-message;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: "Configurar WiFi";
+                font-size: 24px;
+                font-weight: 700;
+                color: white;
+                vertical-alignment: center;
+            }
+
+            TouchArea {
+                width: 100px;
+                height: 40px;
+                Rectangle {
+                    background: parent.pressed ? #8B0000 : #d9534f;
+                    border-radius: 8px;
+                    Text { text: "Voltar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.go-back(); }
+            }
+        }
+
+        // Status box
+        Rectangle {
+            background: #1d2330;
+            border-radius: 8px;
+
+            VerticalLayout {
+                spacing: 8px;
+                padding: 12px;
+
+                Text {
+                    text: root.connected-ssid != "" ? "Conectado a: " + root.connected-ssid : "Não conectado";
+                    font-size: 16px;
+                    color: root.connected-ssid != "" ? #4caf50 : #f44336;
+                    font-weight: 700;
+                }
+
+                Text {
+                    text: root.status-message;
+                    font-size: 14px;
+                    color: #aaa;
+                }
+            }
+        }
+
+        // Botões de ação
+        HorizontalLayout {
+            spacing: 12px;
+
+            TouchArea {
+                width: 150px;
+                height: 45px;
+                Rectangle {
+                    background: parent.pressed ? #2d6a9f : #4a90d9;
+                    border-radius: 8px;
+                    Text {
+                        text: root.is-scanning ? "Escaneando..." : "Escanear Redes";
+                        color: white;
+                        font-size: 15px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                clicked => {
+                    if (!root.is-scanning) {
+                        root.scan-networks();
+                    }
+                }
+            }
+
+            if (root.connected-ssid != ""): TouchArea {
+                width: 120px;
+                height: 45px;
+                Rectangle {
+                    background: parent.pressed ? #8B0000 : #d9534f;
+                    border-radius: 8px;
+                    Text { text: "Desconectar"; color: white; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.disconnect(); }
+            }
+        }
+
+        // Lista de redes disponíveis
+        Text {
+            text: "Redes Disponíveis:";
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+
+        // Indicador de scanning
+        VerticalLayout {
+            alignment: center;
+            padding: 20px;
+            visible: root.is-scanning;
+            height: root.is-scanning ? 200px : 0px;
+
+            Text {
+                text: "Procurando redes...";
+                color: #aaa;
+                font-size: 16px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Lista de redes
+        ListView {
+            visible: !root.is-scanning;
+            height: root.is-scanning ? 0px : 200px;
+            for network in root.available-networks: TouchArea {
+                height: 50px;
+                clicked => {
+                    if (network.secured) {
+                        root.request-password(network.ssid);
+                    } else {
+                        root.connect-to-network(network.ssid, "");
+                    }
+                }
+
+                Rectangle {
+                    background: parent.pressed ? #2a3140 : transparent;
+
+                    HorizontalLayout {
+                        padding: 10px;
+                        spacing: 10px;
+
+                        Text {
+                            text: network.ssid;
+                            color: #7fdbff;
+                            font-size: 16px;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            text: network.secured ? "🔒" : "";
+                            font-size: 14px;
+                            vertical-alignment: center;
+                        }
+
+                        Text {
+                            text: network.rssi >= -50 ? "Excelente" : (network.rssi >= -70 ? "Bom" : "Fraco");
+                            color: network.rssi >= -50 ? #4caf50 : (network.rssi >= -70 ? #ff9800 : #f44336);
+                            font-size: 12px;
+                            vertical-alignment: center;
+                            horizontal-alignment: right;
+                        }
+                    }
+
+                    Rectangle {
+                        y: parent.height - 1px;
+                        height: 1px;
+                        background: #333c4d;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- TELA 7: RELÓGIO E BRILHO ---
+component ClockScreen inherits Rectangle {
+    in property <string> time-display;
+    in property <int> brightness;
+    callback go-back();
+    callback open-set-time();
+    callback brightness-up();
+    callback brightness-down();
+
+    VerticalLayout {
+        alignment: center;
+        padding: 30px;
+        spacing: 24px;
+
+        Text {
+            text: root.time-display;
+            font-size: 34px;
+            font-weight: 700;
+            color: white;
+            horizontal-alignment: center;
+        }
+
+        TouchArea {
+            width: 200px;
+            height: 44px;
+            Rectangle {
+                background: parent.pressed ? #2d6a9f : #4a90d9;
+                border-radius: 8px;
+                Text { text: "Ajustar data/hora"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            clicked => { root.open-set-time(); }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #333c4d;
+        }
+
+        Text {
+            text: "Brilho: " + root.brightness + "%";
+            font-size: 18px;
+            color: #7fdbff;
+            horizontal-alignment: center;
+        }
+
+        HorizontalLayout {
+            spacing: 20px;
+            alignment: center;
+
+            TouchArea {
+                width: 60px;
+                height: 50px;
+                Rectangle {
+                    background: parent.pressed ? #2d6a9f : #4a90d9;
+                    border-radius: 8px;
+                    Text { text: "-"; color: white; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.brightness-down(); }
+            }
+            TouchArea {
+                width: 60px;
+                height: 50px;
+                Rectangle {
+                    background: parent.pressed ? #2d6a9f : #4a90d9;
+                    border-radius: 8px;
+                    Text { text: "+"; color: white; font-size: 24px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.brightness-up(); }
+            }
+        }
+
+        TouchArea {
+            width: 100px;
+            height: 40px;
+            Rectangle {
+                background: parent.pressed ? #3a4150 : #4d5566;
+                border-radius: 8px;
+                Text { text: "Voltar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            clicked => { root.go-back(); }
+        }
+    }
+}
+
+// --- TELA 8: AJUSTE MANUAL DE DATA/HORA ---
+component ClockSetTimeScreen inherits Rectangle {
+    in property <string> input-buffer;
+    callback confirm();
+    callback cancel();
+
+    VerticalLayout {
+        alignment: center;
+        padding: 30px;
+        spacing: 20px;
+
+        Text {
+            text: "Ajustar data/hora";
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Digite 10 dígitos: DDMMAAHHMM (sem espaço)";
+            font-size: 13px;
+            color: #6b7688;
+            horizontal-alignment: center;
+        }
+
+        Rectangle {
+            height: 50px;
+            background: #1d2330;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #4a90d9;
+
+            Text {
+                text: root.input-buffer + "▏";
+                color: white;
+                font-size: 24px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                letter-spacing: 4px;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 16px;
+            alignment: center;
+
+            TouchArea {
+                width: 140px;
+                height: 46px;
+                Rectangle {
+                    background: parent.pressed ? #2d6a9f : #4a90d9;
+                    border-radius: 8px;
+                    Text { text: "Confirmar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.confirm(); }
+            }
+            TouchArea {
+                width: 140px;
+                height: 46px;
+                Rectangle {
+                    background: parent.pressed ? #3a4150 : #4d5566;
+                    border-radius: 8px;
+                    Text { text: "Cancelar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.cancel(); }
+            }
+        }
+    }
+}
+
+// --- TELA 6: SENHA DO WIFI ---
+component WifiPasswordScreen inherits Rectangle {
+    in property <string> target-ssid;
+    in property <string> password-mask;
+    callback connect();
+    callback cancel();
+
+    VerticalLayout {
+        alignment: center;
+        padding: 30px;
+        spacing: 20px;
+
+        Text {
+            text: "Conectar a";
+            font-size: 16px;
+            color: #aaa;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: root.target-ssid;
+            font-size: 26px;
+            font-weight: 700;
+            color: white;
+            horizontal-alignment: center;
+        }
+
+        Rectangle {
+            height: 50px;
+            background: #1d2330;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #4a90d9;
+
+            Text {
+                // password-mask já vem pronto do C++ (um "*" por
+                // caractere digitado) — o Slint só exibe, sem calcular
+                // nada aqui (Slint não tem loop imperativo dentro de
+                // uma expressão, só "for" pra repetir elemento de UI).
+                text: root.password-mask + "▏";
+                color: white;
+                font-size: 22px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                letter-spacing: 4px;
+            }
+        }
+
+        Text {
+            text: "Digite a senha no teclado USB";
+            font-size: 13px;
+            color: #6b7688;
+            horizontal-alignment: center;
+        }
+
+        HorizontalLayout {
+            spacing: 16px;
+            alignment: center;
+
+            TouchArea {
+                width: 140px;
+                height: 46px;
+                Rectangle {
+                    background: parent.pressed ? #2d6a9f : #4a90d9;
+                    border-radius: 8px;
+                    Text { text: "Conectar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.connect(); }
+            }
+
+            TouchArea {
+                width: 140px;
+                height: 46px;
+                Rectangle {
+                    background: parent.pressed ? #3a4150 : #4d5566;
+                    border-radius: 8px;
+                    Text { text: "Cancelar"; color: white; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                clicked => { root.cancel(); }
+            }
+        }
     }
 }
 
@@ -88,7 +544,7 @@ component FileManagerScreen inherits Rectangle {
                 color: white;
                 vertical-alignment: center;
             }
-            
+
             // Botão de Voltar
             TouchArea {
                 width: 100px;
@@ -105,7 +561,7 @@ component FileManagerScreen inherits Rectangle {
         Rectangle {
             background: #1d2330;
             border-radius: 8px;
-            
+
             ListView {
                 for file in root.files: Rectangle {
                     height: 40px;
@@ -325,8 +781,33 @@ export component AppWindow inherits Window {
     callback save-note();
     callback delete-note();
 
+    // WiFi
+    in property <[WifiNetwork]> wifi-networks;
+    in property <string> wifi-ssid;
+    in property <string> wifi-status;
+    in property <bool> wifi-connected;
+    in property <bool> wifi-scanning;
+    callback scan-wifi();
+    callback connect-wifi(string, string);
+    callback disconnect-wifi();
+
+    // Senha do WiFi (tela dedicada, digitada via teclado USB)
+    in-out property <string> wifi-target-ssid: "";
+    in-out property <string> wifi-password-buffer: "";
+    in-out property <string> wifi-password-mask: "";
+
+    // Relógio e brilho
+    in property <string> clock-time-display: "--/--/---- --:--:--";
+    in property <int> clock-brightness: 100;
+    in-out property <string> clock-set-time-buffer: "";
+    callback request-brightness-up();
+    callback request-brightness-down();
+    callback confirm-set-time();
+
     if (active-app == AppState.Launcher) : LauncherScreen {
         last-key: root.last-key;
+        wifi-status: root.wifi-status;
+        wifi-connected: root.wifi-connected;
         open-app(app-name) => {
             if (app-name == "Arquivos") {
                 root.request-file-list();
@@ -334,6 +815,10 @@ export component AppWindow inherits Window {
             } else if (app-name == "Notas") {
                 root.request-notes-list();
                 root.active-app = AppState.NotesList;
+            } else if (app-name == "Config") {
+                root.active-app = AppState.WifiConfig;
+            } else if (app-name == "Relógio") {
+                root.active-app = AppState.Clock;
             }
         }
     }
@@ -371,6 +856,72 @@ export component AppWindow inherits Window {
         go-back => {
             root.active-app = AppState.NotesList;
             root.request-notes-list();
+        }
+    }
+
+    if (active-app == AppState.WifiConfig) : WifiConfigScreen {
+        available-networks: root.wifi-networks;
+        connected-ssid: root.wifi-connected ? root.wifi-ssid : "";
+        is-scanning: root.wifi-scanning;
+        status-message: root.wifi-status;
+        go-back => {
+            root.active-app = AppState.Launcher;
+        }
+        scan-networks => {
+            root.scan-wifi();
+        }
+        connect-to-network(ssid, password) => {
+            root.connect-wifi(ssid, password);
+        }
+        request-password(ssid) => {
+            root.wifi-target-ssid = ssid;
+            root.wifi-password-buffer = "";
+            root.wifi-password-mask = "";
+            root.active-app = AppState.WifiPassword;
+        }
+        disconnect => {
+            root.disconnect-wifi();
+        }
+    }
+
+    if (active-app == AppState.WifiPassword) : WifiPasswordScreen {
+        target-ssid: root.wifi-target-ssid;
+        password-mask: root.wifi-password-mask;
+        connect => {
+            root.connect-wifi(root.wifi-target-ssid, root.wifi-password-buffer);
+            root.active-app = AppState.WifiConfig;
+        }
+        cancel => {
+            root.active-app = AppState.WifiConfig;
+        }
+    }
+
+    if (active-app == AppState.Clock) : ClockScreen {
+        time-display: root.clock-time-display;
+        brightness: root.clock-brightness;
+        go-back => {
+            root.active-app = AppState.Launcher;
+        }
+        open-set-time => {
+            root.clock-set-time-buffer = "";
+            root.active-app = AppState.ClockSetTime;
+        }
+        brightness-up => {
+            root.request-brightness-up();
+        }
+        brightness-down => {
+            root.request-brightness-down();
+        }
+    }
+
+    if (active-app == AppState.ClockSetTime) : ClockSetTimeScreen {
+        input-buffer: root.clock-set-time-buffer;
+        confirm => {
+            root.confirm-set-time();
+            root.active-app = AppState.Clock;
+        }
+        cancel => {
+            root.active-app = AppState.Clock;
         }
     }
 }

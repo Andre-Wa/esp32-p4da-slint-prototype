@@ -208,3 +208,13 @@ void board_display_backlight_on(void)
     ledc_set_duty(LEDC_LOW_SPEED_MODE, BOARD_LCD_BL_LEDC_CHANNEL, 1023); /* 100% */
     ledc_update_duty(LEDC_LOW_SPEED_MODE, BOARD_LCD_BL_LEDC_CHANNEL);
 }
+
+void board_display_set_brightness(uint8_t percent)
+{
+    if (percent > 100) {
+        percent = 100;
+    }
+    uint32_t duty = ((uint32_t)percent * 1023) / 100;
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BOARD_LCD_BL_LEDC_CHANNEL, duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BOARD_LCD_BL_LEDC_CHANNEL);
+}

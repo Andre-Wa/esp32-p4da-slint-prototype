@@ -3,6 +3,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_err.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,9 @@ esp_err_t board_display_init(esp_lcd_panel_handle_t *out_panel);
 
 /** Liga o backlight (se BOARD_LCD_BL_GPIO estiver definido). */
 void board_display_backlight_on(void);
+
+/** Ajusta o brilho do backlight (0-100%). */
+void board_display_set_brightness(uint8_t percent);
 
 #ifdef __cplusplus
 }

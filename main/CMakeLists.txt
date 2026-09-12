@@ -6,6 +6,7 @@ idf_component_register(
         "usb_hid_keyboard.cpp"
         "storage_init.c"
         "wifi_init.c"
+        "clock_init.c"
     INCLUDE_DIRS "."
     REQUIRES
         esp_lcd
